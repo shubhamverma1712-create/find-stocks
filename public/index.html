@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SMC Setup Scanner</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0f0f12;
+    --surface:  #18181e;
+    --border:   #2a2a35;
+    --text:     #e8e8f0;
+    --muted:    #7b7b96;
+    --buy:      #1D9E75;
+    --buy-bg:   #0b2e22;
+    --sell:     #E24B4A;
+    --sell-bg:  #2e0b0b;
+    --pre:      #EF9F27;
+    --pre-bg:   #2e1f06;
+    --accent:   #534AB7;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 1.25rem;
+    font-size: 14px;
+  }
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.25rem;
+  }
+  .header-left { display: flex; align-items: center; gap: 10px; }
+  .logo { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo span { color: var(--accent); }
+  .live-pill {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; padding: 3px 10px;
+    border: 1px solid var(--border);
+    border-radius: 20px; color: var(--muted);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--buy); animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.25} }
+  .clock { font-size: 12px; color: var(--muted); }
+
+  .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-bottom: 1.25rem; }
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem 1rem;
+  }
+  .stat-label { font-size: 11px; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-val { font-size: 26px; font-weight: 600; }
+  .stat-val.c-buy  { color: var(--buy);  }
+  .stat-val.c-sell { color: var(--sell); }
+  .stat-val.c-pre  { color: var(--pre);  }
+
+  .toolbar { display: flex; gap: 8px; margin-bottom: 1rem; flex-wrap: wrap; align-items: center; }
+  .btn-f {
+    font-size: 12px; padding: 5px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent; color: var(--muted);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .btn-f:hover, .btn-f.active { background: var(--surface); color: var(--text); border-color: #555; }
+  .btn-f.active { font-weight: 600; }
+  .search {
+    margin-left: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 12px;
+    color: var(--text);
+    font-size: 13px;
+    width: 170px;
+    outline: none;
+  }
+  .search:focus { border-color: var(--accent); }
+  .btn-clear {
+    font-size: 12px; padding: 5px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--sell-bg);
+    background: transparent; color: var(--sell);
+    cursor: pointer;
+  }
+  .btn-clear:hover { background: var(--sell-bg); }
+
+  .table-wrap {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface); }
+  tbody td { padding: 11px 14px; vertical-align: middle; }
+
+  .symbol { font-weight: 600; font-size: 14px; }
+  .price  { font-weight: 500; font-family: monospace; font-size: 13px; }
+  .chg-p  { color: var(--buy);  font-weight: 600; }
+  .chg-n  { color: var(--sell); font-weight: 600; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+  .b-buy      { background: var(--buy-bg);  color: var(--buy);  border: 1px solid #1D9E7533; }
+  .b-sell     { background: var(--sell-bg); color: var(--sell); border: 1px solid #E24B4A33; }
+  .b-pre-buy  { background: var(--pre-bg);  color: var(--pre);  border: 1px solid #EF9F2733; }
+  .b-pre-sell { background: var(--pre-bg);  color: var(--pre);  border: 1px solid #EF9F2733; }
+
+  .tf-tag {
+    font-size: 11px; padding: 2px 8px;
+    background: #22222e; border-radius: 4px;
+    color: var(--muted);
+  }
+  .levels { font-size: 11px; color: var(--muted); line-height: 1.6; }
+  .levels b { color: var(--text); font-weight: 500; }
+
+  .empty {
+    text-align: center; padding: 3rem 1rem;
+    color: var(--muted); font-size: 14px;
+  }
+  .empty-icon { font-size: 36px; margin-bottom: 0.5rem; }
+
+  .webhook-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .panel-title { font-weight: 600; margin-bottom: 1rem; font-size: 14px; }
+  .step { display: flex; gap: 12px; margin-bottom: 1rem; }
+  .step-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-weight: 600; margin-bottom: 4px; font-size: 13px; }
+  .step-desc { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .code-box {
+    background: #0a0a10;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #a0f0c0;
+    margin-top: 8px;
+    word-break: break-all;
+    position: relative;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    font-size: 11px; padding: 3px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted); cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--text); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">SMC <span>Scanner</span></div>
+    <div class="live-pill"><div class="dot"></div><span id="liveStatus">Connecting...</span></div>
+  </div>
+  <div class="clock" id="clock">--:-- IST</div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="stat-label">Total Signals</div><div class="stat-val" id="cntTotal">0</div></div>
+  <div class="stat"><div class="stat-label">Buy Setups</div><div class="stat-val c-buy" id="cntBuy">0</div></div>
+  <div class="stat"><div class="stat-label">Sell Setups</div><div class="stat-val c-sell" id="cntSell">0</div></div>
+  <div class="stat"><div class="stat-label">Pre-Signals</div><div class="stat-val c-pre" id="cntPre">0</div></div>
+</div>
+
+<div class="toolbar">
+  <button class="btn-f active" onclick="setFilter('all',this)">All</button>
+  <button class="btn-f" onclick="setFilter('buy',this)">Buy Setup</button>
+  <button class="btn-f" onclick="setFilter('sell',this)">Sell Setup</button>
+  <button class="btn-f" onclick="setFilter('pre',this)">Pre-Signal</button>
+  <button class="btn-clear" onclick="clearSignals()">Clear All</button>
+  <input class="search" type="text" placeholder="Stock search..." id="searchBox" oninput="renderFiltered()">
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Stock</th>
+        <th>Price</th>
+        <th>Change</th>
+        <th>Signal</th>
+        <th>TF</th>
+        <th>Levels</th>
+        <th>Time</th>
+      </tr>
+    </thead>
+    <tbody id="tBody">
+      <tr><td colspan="7" class="empty">
+        <div class="empty-icon">📡</div>
+        TradingView alerts ka wait kar raha hai...<br>
+        <small>Neeche steps follow karke webhook set karein</small>
+      </td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="webhook-panel">
+  <div class="panel-title">🔗 TradingView Webhook Setup</div>
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <div class="step-title">Apna Glitch URL copy karein</div>
+      <div class="step-desc">Glitch project ka naam apne URL mein replace karein:</div>
+      <div class="code-box" id="urlBox">
+        https://YOUR-PROJECT-NAME.glitch.me/webhook
+        <button class="copy-btn" onclick="copyText('urlBox')">Copy</button>
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <div class="step-title">TradingView Alert JSON Message</div>
+      <div class="step-desc">Alert create karte waqt "Message" field mein ye daalo:</div>
+      <div class="code-box" id="jsonBox">{
+  "symbol": "{{ticker}}",
+  "signal": "BUY",
+  "price": {{close}},
+  "sl": 0,
+  "tp": 0,
+  "tf": "{{interval}}",
+  "change": 0
+}
+        <button class="copy-btn" onclick="copyText('jsonBox')">Copy</button>
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <div class="step-title">Signal types ke liye alag alerts banao</div>
+      <div class="step-desc">
+        Har alert condition ke liye "signal" field change karo:<br>
+        • BUY signal → <b style="color:var(--buy)">"signal": "BUY"</b><br>
+        • SELL signal → <b style="color:var(--sell)">"signal": "SELL"</b><br>
+        • Pre-Buy → <b style="color:var(--pre)">"signal": "PRE-BUY"</b><br>
+        • Pre-Sell → <b style="color:var(--pre)">"signal": "PRE-SELL"</b>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let allSignals = [];
+let activeFilter = 'all';
+let lastId = 0;
+const SERVER = '';
+
+function badge(type, signal) {
+  const map = { buy:'b-buy', sell:'b-sell', 'pre-buy':'b-pre-buy', 'pre-sell':'b-pre-sell' };
+  const icons = { buy:'▲', sell:'▼', 'pre-buy':'⚡', 'pre-sell':'⚡' };
+  return `<span class="badge ${map[type]||'b-buy'}">${icons[type]||''} ${signal}</span>`;
+}
+
+function renderFiltered() {
+  const q = (document.getElementById('searchBox').value||'').toLowerCase();
+  const rows = allSignals.filter(s => {
+    const mF = activeFilter === 'all' ||
+               (activeFilter === 'buy'  && s.type === 'buy') ||
+               (activeFilter === 'sell' && s.type === 'sell') ||
+               (activeFilter === 'pre'  && s.type.startsWith('pre'));
+    return mF && (!q || s.symbol.toLowerCase().includes(q));
+  });
+  const tb = document.getElementById('tBody');
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td colspan="7" class="empty"><div class="empty-icon">🔍</div>Koi signal nahi mila</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(s => `
+    <tr>
+      <td class="symbol">${s.symbol}</td>
+      <td class="price">${s.price.toFixed(2)}</td>
+      <td class="${s.change >= 0 ? 'chg-p' : 'chg-n'}">${s.change >= 0 ? '+' : ''}${s.change.toFixed(2)}%</td>
+      <td>${badge(s.type, s.signal)}</td>
+      <td><span class="tf-tag">${s.tf || '-'}</span></td>
+      <td class="levels">
+        ${s.sl ? `<b>SL:</b> ${s.sl.toFixed(2)}<br>` : ''}
+        ${s.tp ? `<b>TP:</b> ${s.tp.toFixed(2)}` : '-'}
+      </td>
+      <td style="color:var(--muted)">${s.time}</td>
+    </tr>
+  `).join('');
+}
+
+function updateStats() {
+  document.getElementById('cntTotal').textContent = allSignals.length;
+  document.getElementById('cntBuy').textContent   = allSignals.filter(s=>s.type==='buy').length;
+  document.getElementById('cntSell').textContent  = allSignals.filter(s=>s.type==='sell').length;
+  document.getElementById('cntPre').textContent   = allSignals.filter(s=>s.type.startsWith('pre')).length;
+}
+
+function setFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.btn-f').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFiltered();
+}
+
+async function fetchSignals() {
+  try {
+    const res  = await fetch(`${SERVER}/signals?since=${lastId}`);
+    const data = await res.json();
+    if (data.length) {
+      allSignals = [...data, ...allSignals].slice(0, 200);
+      lastId = allSignals[0].id;
+      updateStats();
+      renderFiltered();
+    }
+    document.getElementById('liveStatus').textContent = 'Live';
+  } catch(e) {
+    document.getElementById('liveStatus').textContent = 'Reconnecting...';
+  }
+}
+
+async function clearSignals() {
+  await fetch(`${SERVER}/signals`, { method: 'DELETE' });
+  allSignals = []; lastId = 0;
+  updateStats(); renderFiltered();
+}
+
+function copyText(id) {
+  const text = document.getElementById(id).innerText.replace('Copy','').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.querySelector(`#${id} .copy-btn`);
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  });
+}
+
+function updateClock() {
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')} IST`;
+}
+
+window.addEventListener('load', () => {
+  const origin = window.location.origin;
+  if (!origin.includes('localhost')) {
+    document.getElementById('urlBox').childNodes[0].textContent = origin + '/webhook\n        ';
+  }
+});
+
+updateClock();
+setInterval(updateClock, 30000);
+fetchSignals();
+setInterval(fetchSignals, 8000);
+</script>
+</body>
+</html>
